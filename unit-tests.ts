@@ -1,5 +1,6 @@
 // unit-tests.ts
 import { isTimeInRange, rangesOverlap } from './src/lib/schedule';
+import { extractAlertText } from './src/lib/alert-text';
 
 function assert(condition: boolean, message: string) {
     if (!condition) {
@@ -44,5 +45,19 @@ assert(rangesOverlap('22:00', '02:00', '20:00', '21:00') === false, '22-02 and 2
 assert(rangesOverlap('22:00', '02:00', '01:00', '03:00') === true, 'Overnight 22-02 and Normal 01-03 overlap');
 assert(rangesOverlap('23:00', '01:00', '00:00', '00:30') === true, 'Overnight 23-01 and Normal 00-00:30 overlap');
 assert(rangesOverlap('23:00', '01:00', '02:00', '03:00') === false, 'Overnight 23-01 and Normal 02-03 do NOT overlap');
+
+// 3. extractAlertText
+console.log('\n3. Testing extractAlertText...');
+assert(extractAlertText('Price just touched the Slow EMA') === 'Price just touched the Slow EMA', 'plain text passes through');
+assert(extractAlertText('{"":"iPhone is fully charged"}') === 'iPhone is fully charged', 'Shortcuts single-value JSON is unwrapped');
+assert(extractAlertText('{"msg":"iPad is fully charged."}') === 'iPad is fully charged.', 'single-value JSON with any key is unwrapped');
+assert(extractAlertText(' {"":"padded"}\n') === 'padded', 'surrounding whitespace is tolerated');
+assert(extractAlertText('{"text":"BTC up","ticker":"BTCUSD"}') === 'BTC up', '"text" field wins in multi-field JSON');
+assert(extractAlertText('{"a":"1","b":"2"}') === '{"a":"1","b":"2"}', 'multi-field JSON without text stays raw');
+assert(extractAlertText('{"price":42}') === '{"price":42}', 'single non-string value stays raw');
+assert(extractAlertText('{"":""}') === '{"":""}', 'single empty string stays raw');
+assert(extractAlertText('{not json') === '{not json', 'invalid JSON stays raw');
+assert(extractAlertText('["a"]') === '["a"]', 'JSON array stays raw');
+assert(extractAlertText('') === '', 'empty body stays empty (route returns 400)');
 
 console.log('\n--- All Unit Tests Passed ---');

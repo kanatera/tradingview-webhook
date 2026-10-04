@@ -5,6 +5,7 @@ import { castToSpeaker } from "@/lib/google-home";
 import { sendLgTvToast } from "@/lib/lg-tv";
 import { addToRetryQueue } from "@/lib/retry-queue";
 import { notifyClients } from "@/lib/sse-clients";
+import { extractAlertText } from "@/lib/alert-text";
 
 export async function POST(
     request: NextRequest,
@@ -25,20 +26,7 @@ export async function POST(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let text: string | undefined;
-    const contentType = request.headers.get("content-type") || "";
-    const rawBody = await request.text();
-
-    if (contentType.includes("application/json")) {
-        try {
-            const jsonBody = JSON.parse(rawBody);
-            text = typeof jsonBody.text === "string" ? jsonBody.text : rawBody;
-        } catch {
-            text = rawBody;
-        }
-    } else {
-        text = rawBody;
-    }
+    const text = extractAlertText(await request.text());
 
     if (!text || text.trim().length === 0) {
         return NextResponse.json(
