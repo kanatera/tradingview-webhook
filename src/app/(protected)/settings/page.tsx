@@ -7,6 +7,7 @@ import LgTvManager from "@/components/settings/LgTvManager";
 import DatabaseTools from "@/components/settings/DatabaseTools";
 import CredentialsForm from "@/components/settings/CredentialsForm";
 import QuietHoursManager from "@/components/settings/QuietHoursManager";
+import ApiTokenManager from "@/components/settings/ApiTokenManager";
 
 export default function SettingsPage() {
     const [refreshKey, setRefreshKey] = useState(0);
@@ -57,6 +58,9 @@ export default function SettingsPage() {
 
             {/* System Settings */}
             <CredentialsForm />
+
+            {/* Read-only API token for external dashboards */}
+            <ApiTokenManager />
         </div>
     );
 }

@@ -64,7 +64,8 @@ The instant-return + background-processing split is intentional and critical. Do
 | `src/lib/schedule.ts` | Timezone-aware schedule matching; handles overnight ranges; returns `channelType` on each active channel |
 | `src/lib/retry-queue.ts` | Background retry: 3 attempts, 30s apart; skips if speaker goes inactive by schedule |
 | `src/lib/sse-clients.ts` | SSE broadcast for real-time dashboard; client falls back to 10s polling |
-| `src/lib/auth.ts` | Session-based auth: cookie token verified against `AppSetting` in DB |
+| `src/lib/auth.ts` | Session + read-token verification (constant-time); public/read-token route allowlists |
+| `src/middleware.ts` | Default-deny auth for all `/api/*` routes |
 | `src/app/api/webhook/[secret]/route.ts` | Main webhook entry point; TV-first routing logic |
 | `src/app/api/lgtv/pair/route.ts` | POST: pair TV + create default schedules; GET: check pairing status |
 | `src/app/api/lgtv/test/route.ts` | POST: send test toast to TV |
@@ -107,7 +108,15 @@ Runtime configuration is stored in the `AppSetting` table (key/value SQLite):
 
 Webhook auth: if no secret is configured (`AppSetting` is empty and `WEBHOOK_SECRET` env is unset), all webhooks are accepted. Auth is only enforced when a secret exists — `if (expectedSecret && secret !== expectedSecret)`.
 
-Session auth: protected routes use a layout wrapper that checks the session cookie against the DB.
+Session auth: protected pages use a layout wrapper that checks the session cookie against the DB.
+
+API auth: `src/middleware.ts` (Node.js runtime, so it can use Prisma) is **default-deny for every `/api/*` route**: a valid `trade_alert_session` cookie is required. Exceptions live in `src/lib/auth.ts`:
+- `PUBLIC_API_ROUTES` — `/api/webhook/:secret`, `/api/health`, `/api/auth/login`, `/api/auth/logout`. Don't add routes here unless they truly must be internet-reachable (port 80 is forwarded to this app).
+- `READ_TOKEN_ROUTES` — `GET /api/messages` also accepts the read-only token (`X-API-Key` header, `AppSetting` `homepage_read_token`, managed in Settings → Read-only API Token). Used by the Homepage dashboard widget.
+
+There is only one `SESSION_TOKEN`, so any login (including `e2e-test.js` / `auth-e2e-test.js`) logs out other browsers.
+
+Tests: `node auth-e2e-test.js` (non-destructive; `BASE_URL`, `AUTH_USER`, `AUTH_PASS` env) checks every route's auth. `e2e-test.js` purges messages — run it against a scratch DB only.
 
 ### SpeakerSchedule channelType
 

@@ -1,9 +1,28 @@
-const BASE_URL = 'http://localhost:12345';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:12345';
+const AUTH_USER = process.env.AUTH_USER || 'admin';
+const AUTH_PASS = process.env.AUTH_PASS || 'admin';
+
+// /api routes require a session (see src/middleware.ts): log in once, then send
+// the session cookie on every request.
+async function login() {
+  const res = await fetch(`${BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: AUTH_USER, password: AUTH_PASS }),
+  });
+  if (!res.ok) throw new Error(`Login failed: ${res.status}`);
+  const cookie = (res.headers.get('set-cookie') || '').split(';')[0];
+  const rawFetch = globalThis.fetch;
+  globalThis.fetch = (url, opts = {}) =>
+    rawFetch(url, { ...opts, headers: { ...(opts.headers || {}), Cookie: cookie } });
+}
 
 async function runTests() {
   console.log('--- Starting End-to-End Tests ---');
 
   try {
+    await login();
+
     // 1. Settings
     console.log('\n1. Testing Settings API...');
     const settingsRes = await fetch(`${BASE_URL}/api/settings/webook`);
