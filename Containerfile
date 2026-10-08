@@ -5,6 +5,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 # We need prisma to generate the client later, so install it
 RUN npm ci
+# Standalone Prisma CLI for entrypoint.sh's schema sync, pinned to the lockfile version,
+# so container start never needs network access.
+RUN npm install --no-save --prefix /opt/prisma \
+    prisma@$(node -p "require('./package-lock.json').packages['node_modules/prisma'].version")
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
@@ -52,6 +56,7 @@ COPY --chown=nextjs:nodejs --from=builder /app/package.json ./package.json
 # because standalone might not grab the custom generated engines correctly
 COPY --chown=nextjs:nodejs --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --chown=nextjs:nodejs --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=deps /opt/prisma /opt/prisma
 
 # Create data directory
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
